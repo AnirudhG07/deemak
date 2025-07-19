@@ -1,28 +1,44 @@
 use crate::commands::cmds::{CommandResult, cmd_manager};
 use crate::commands::ls::list_directory_entries;
-use crate::gui_main::run_gui_loop;
-use crate::gui_main::sekai_no_hajimari;
 use crate::keys::key_to_char;
 use crate::metainfo::info_reader::read_validate_info;
 use crate::utils::config::{self, FONT_OPTIONS};
 use crate::utils::prompt::UserPrompter;
+use crate::utils::shell_history;
 use crate::utils::tab_completion::{TabCompletionResult, process_tab_completion};
-use crate::utils::{shell_history, wrapit::wrapit};
+use crate::utils::wrapit::wrapit;
 use raylib::ffi::{
     ColorFromHSV, DrawLineEx, DrawRectangle, DrawTextEx, LoadFontEx, MeasureTextEx, SetExitKey,
     Vector2,
 };
 use raylib::prelude::*;
-use std::cmp::max;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::ffi::CString;
-use std::os::raw::c_char;
-use std::{mem::take, os::raw::c_int, path::PathBuf};
+use std::mem::take;
+use std::os::raw::{c_char, c_int};
+use std::path::PathBuf;
 use textwrap::wrap;
 
-pub struct ShellScreen<'a> {
+// This struct is a temporary wrapper to pass to commands that need user input.
+// It holds mutable references to the shell's state and the Raylib handles,
+// allowing commands to prompt the user without the main ShellScreen struct
+// needing to permanently borrow the Raylib handles.
+pub struct ShellPrompter<'a> {
+    shell: &'a mut ShellScreen,
     rl: &'a mut RaylibHandle,
     thread: &'a RaylibThread,
+}
+
+impl<'a> UserPrompter for ShellPrompter<'a> {
+    fn confirm(&mut self, message: &str) -> bool {
+        self.shell.prompt_yes_no(self.rl, self.thread, message)
+    }
+    fn input(&mut self, message: &str) -> String {
+        self.shell.prompt_input_text(self.rl, self.thread, message)
+    }
+}
+
+pub struct ShellScreen {
     input_buffer: String,
     working_buffer: Option<String>,
     output_lines: Vec<String>,
@@ -41,15 +57,7 @@ pub struct ShellScreen<'a> {
     selection_start: Option<(usize, usize)>, // (line_index, char_index)
     selection_end: Option<(usize, usize)>,
     mouse_dragging: bool,
-}
-
-impl UserPrompter for ShellScreen<'_> {
-    fn confirm(&mut self, message: &str) -> bool {
-        self.prompt_yes_no(message)
-    }
-    fn input(&mut self, message: &str) -> String {
-        self.prompt_input_text(message)
-    }
+    should_exit: bool,
 }
 
 pub(crate) static mut FIRST_RUN: bool = true;
@@ -59,7 +67,7 @@ pub const DEEMAK_BANNER: &str = r#"
 | |  | | ___  ___ _ __ ___   __ _| | __
 | |  | |/ _ \/ _ \ '_ ` _ \ / _` | |/ /
 | |__| |  __/  __/ | | | | | (_| |   <
-|_____/ \___|\___|_| |_| |_|\__,_|_|\_\
+|_____/ \___|\___|_| |_|_| |\__,_|_|\_|
 
 Developed by Databased Club, Indian Institute of Science, Bangalore.
 Official Github Repo: https://github.com/databasedIISc/deemak
@@ -67,10 +75,10 @@ Official Github Repo: https://github.com/databasedIISc/deemak
 
 pub const INITIAL_MSG: &str = "Type commands and press Enter. Try `help` for more info.";
 
-impl<'a> ShellScreen<'a> {
+impl ShellScreen {
     pub fn new_sekai(
-        rl: &'a mut RaylibHandle,
-        thread: &'a RaylibThread,
+        rl: &mut RaylibHandle,
+        _thread: &RaylibThread,
         sekai_dir: PathBuf,
         font_size: f32,
     ) -> Self {
@@ -100,12 +108,7 @@ impl<'a> ShellScreen<'a> {
             let cstr = CString::new("W").unwrap();
             MeasureTextEx(font, cstr.as_ptr(), font_size, 1.2).x
         };
-        // Initialize the sekai directory
-        sekai_no_hajimari(&sekai_dir);
-
         Self {
-            rl,
-            thread,
             input_buffer: String::new(),
             output_lines: Vec::<String>::new(),
             working_buffer: None,
@@ -124,10 +127,14 @@ impl<'a> ShellScreen<'a> {
             selection_start: None,
             selection_end: None,
             mouse_dragging: false,
+            should_exit: false,
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
+        // Clean up the output lines
+        self.output_lines.clear();
+        self.input_buffer.clear();
         //add to output lines the banner
         let limit: usize = ((self.window_width as f32 * (self.term_split_ratio - 0.12))
             / self.char_width)
@@ -151,43 +158,32 @@ impl<'a> ShellScreen<'a> {
                 .extend(wrapped_home_about.into_iter().map(|c| c.into_owned()));
         }
 
-        while !self.window_should_close() {
-            self.update();
-            self.draw();
+        self.should_exit = false;
+        while !rl.window_should_close() && !self.should_exit {
+            self.update(rl, thread);
+            self.draw(rl, thread);
         }
     }
 
-    pub fn window_should_close(&self) -> bool {
-        self.rl.window_should_close()
-    }
-
-    pub fn update(&mut self) {
+    pub fn update(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
         // MOUSE START
         // Handle mouse input for text selection
-        let mouse_pos = self.rl.get_mouse_position();
+        let mouse_pos = rl.get_mouse_position();
 
         // Check if mouse is in the text area
         let in_text_area = mouse_pos.x < self.window_width as f32 * self.term_split_ratio
             && mouse_pos.y < self.window_height as f32;
 
-        if in_text_area
-            && self
-                .rl
-                .is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT)
-        {
+        if in_text_area && rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
             // Start new selection
             if let Some((line_idx, char_idx)) = self.get_char_index_at_pos(mouse_pos.into()) {
-                // log::log_info(
-                //     "Deemak",
-                //     &format!("Mouse: line {}, char {}", line_idx, char_idx),
-                // );
                 self.selection_start = Some((line_idx, char_idx));
                 self.selection_end = Some((line_idx, char_idx));
                 self.mouse_dragging = true;
             }
         }
 
-        if self.mouse_dragging && self.rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT) {
+        if self.mouse_dragging && rl.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT) {
             // Update selection end while dragging
             if let Some((line_idx, char_idx)) = self.get_char_index_at_pos(mouse_pos.into()) {
                 self.selection_end = Some((line_idx, char_idx));
@@ -195,20 +191,17 @@ impl<'a> ShellScreen<'a> {
         }
 
         // Stop dragging when mouse button is released
-        if self
-            .rl
-            .is_mouse_button_released(MouseButton::MOUSE_BUTTON_LEFT)
-        {
+        if rl.is_mouse_button_released(MouseButton::MOUSE_BUTTON_LEFT) {
             self.mouse_dragging = false;
         }
         // MOUSE END
 
         // Handle keyboard input
-        match self.rl.get_key_pressed() {
+        match rl.get_key_pressed() {
             Some(KeyboardKey::KEY_ENTER) => {
                 let input = take(&mut self.input_buffer);
                 if !input.is_empty() {
-                    self.process_shell_input(&input);
+                    self.process_shell_input(rl, thread, &input);
                     self.scroll_offset = 0;
                     shell_history::add_to_history(&input);
                     self.history_index = None;
@@ -277,8 +270,13 @@ impl<'a> ShellScreen<'a> {
                             should_display_all,
                         } => {
                             self.output_lines.push(current_line);
+                            let mut prompter = ShellPrompter {
+                                shell: self,
+                                rl,
+                                thread,
+                            };
                             if should_display_all {
-                                if self.prompt_yes_no(&format!(
+                                if prompter.confirm(&format!(
                                     "Display all {} possibilities? (y or n)",
                                     completion_lines.len()
                                 )) {
@@ -310,7 +308,7 @@ impl<'a> ShellScreen<'a> {
                     self.input_buffer = history[new_index].clone();
                     self.history_index = Some(new_index);
                 }
-                self.cursor_pos = self.input_buffer.len(); //place at the end of the command 
+                self.cursor_pos = self.input_buffer.len(); //place at the end of the command
             }
             Some(KeyboardKey::KEY_DOWN) => {
                 if let Some(index) = self.history_index {
@@ -339,11 +337,11 @@ impl<'a> ShellScreen<'a> {
                 }
             }
             Some(key) => {
-                let ctrl_pressed = self.rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
-                    || self.rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
+                let ctrl_pressed = rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
+                    || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
 
-                let shift_pressed = self.rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
-                    || self.rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
+                let shift_pressed = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+                    || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
 
                 if ctrl_pressed {
                     match key {
@@ -364,7 +362,7 @@ impl<'a> ShellScreen<'a> {
                                     (self.selection_start, self.selection_end)
                                 {
                                     // Copy selected text
-                                    self.copy_selected_text(start, end);
+                                    self.copy_selected_text(rl, start, end);
                                 } else {
                                     // Next prompt (original behavior)
                                     self.output_lines.push(format!("> {}", self.input_buffer));
@@ -384,8 +382,7 @@ impl<'a> ShellScreen<'a> {
                         KeyboardKey::KEY_V => {
                             if shift_pressed {
                                 // Paste from clipboard
-                                let clipboard_text =
-                                    self.rl.get_clipboard_text().unwrap_or_default();
+                                let clipboard_text = rl.get_clipboard_text().unwrap_or_default();
                                 if !clipboard_text.is_empty() {
                                     // Remove newlines and carriage returns
                                     let filtered_text = clipboard_text.replace(['\n', '\r'], "");
@@ -406,12 +403,12 @@ impl<'a> ShellScreen<'a> {
         }
 
         // Handle window re-size
-        if self.rl.is_window_resized() {
-            self.window_width = self.rl.get_screen_width();
+        if rl.is_window_resized() {
+            self.window_width = rl.get_screen_width();
         }
 
         // Handle scroll
-        let scroll_y = self.rl.get_mouse_wheel_move();
+        let scroll_y = rl.get_mouse_wheel_move();
         if scroll_y != 0.0 {
             self.scroll_offset -= (scroll_y / 2.00) as i32;
         }
@@ -452,7 +449,7 @@ impl<'a> ShellScreen<'a> {
         all_lines.extend(input_lines);
         all_lines
     }
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
         // Draw output lines
         let char_width = unsafe {
             let cstr = CString::new("W").unwrap();
@@ -477,7 +474,7 @@ impl<'a> ShellScreen<'a> {
         self.scroll_offset = max(self.scroll_offset, min_scroll_offset);
         self.scroll_offset = min(self.scroll_offset, 0); // Never go below bottom
 
-        let mut d = self.rl.begin_drawing(self.thread);
+        let mut d = rl.begin_drawing(thread);
         d.clear_background(Color::BLACK);
 
         // Input
@@ -681,7 +678,7 @@ impl<'a> ShellScreen<'a> {
         }
     }
 
-    pub fn process_input(&mut self, mut input: &str, prefix: Option<&str>) -> Vec<String> {
+    pub fn process_input(&mut self, input: &str, prefix: Option<&str>) -> Vec<String> {
         if input.is_empty() {
             return self.output_lines.clone();
         }
@@ -693,7 +690,12 @@ impl<'a> ShellScreen<'a> {
         self.output_lines.clone()
     }
 
-    pub fn process_shell_input(&mut self, input: &str) {
+    pub fn process_shell_input(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        input: &str,
+    ) {
         // If input is empty, do nothing
         if input.trim().is_empty() {
             return;
@@ -701,25 +703,30 @@ impl<'a> ShellScreen<'a> {
         self.output_lines = self.process_input(input, Some(">"));
 
         // Parse and execute command
-        let mut current_dir = self.current_dir.clone();
+        let current_dir = self.current_dir.clone();
         let root_dir = self.root_dir.clone();
         let parts: Vec<&str> = input.split_whitespace().collect();
-        match cmd_manager(&parts, &current_dir, &root_dir, self) {
+        let mut prompter = ShellPrompter {
+            shell: self,
+            rl,
+            thread,
+        };
+        match cmd_manager(&parts, &current_dir, &root_dir, &mut prompter) {
             CommandResult::ChangeDirectory(new_dir, message) => {
                 self.current_dir = new_dir;
                 self.output_lines
-                    .extend(message.split("\n").map(|s| s.to_string()));
+                    .extend(message.split('\n').map(|s| s.to_string()));
             }
             CommandResult::Output(output) => {
                 self.output_lines
-                    .extend(output.split("\n").map(|s| s.to_string()));
+                    .extend(output.split('\n').map(|s| s.to_string()));
             }
             CommandResult::Clear => {
                 self.output_lines.clear();
                 self.output_lines.push(INITIAL_MSG.to_string());
             }
             CommandResult::Exit => {
-                run_gui_loop(self.rl, self.thread, self.font_size, &self.root_dir);
+                self.should_exit = true;
             }
             CommandResult::NotFound => {
                 self.output_lines
@@ -728,24 +735,31 @@ impl<'a> ShellScreen<'a> {
         }
     }
 
-    pub fn prompt_yes_no(&mut self, message: &str) -> bool {
+    pub fn prompt_yes_no(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        message: &str,
+    ) -> bool {
         self.active_prompt = Some(format!("{message} [y/N]"));
         self.input_buffer.clear();
-        self.draw();
+        self.draw(rl, thread);
 
         loop {
-            self.update();
-            self.draw();
+            if rl.window_should_close() {
+                self.should_exit = true;
+                return false;
+            }
+            self.update(rl, thread);
+            self.draw(rl, thread);
 
-            if self.rl.is_key_pressed(raylib::consts::KeyboardKey::KEY_Y) {
+            if rl.is_key_pressed(raylib::consts::KeyboardKey::KEY_Y) {
                 self.active_prompt = None;
                 self.output_lines.push(format!("{message} [y/N] yes"));
                 return true;
             }
-            if self.rl.is_key_pressed(raylib::consts::KeyboardKey::KEY_N)
-                || self
-                    .rl
-                    .is_key_pressed(raylib::consts::KeyboardKey::KEY_ENTER)
+            if rl.is_key_pressed(raylib::consts::KeyboardKey::KEY_N)
+                || rl.is_key_pressed(raylib::consts::KeyboardKey::KEY_ENTER)
             {
                 self.active_prompt = None;
                 self.output_lines.push(format!("{message} [y/N] no"));
@@ -753,18 +767,26 @@ impl<'a> ShellScreen<'a> {
             }
         }
     }
-    pub fn prompt_input_text(&mut self, message: &str) -> String {
+    pub fn prompt_input_text(
+        &mut self,
+        rl: &mut RaylibHandle,
+        thread: &RaylibThread,
+        message: &str,
+    ) -> String {
         self.active_prompt = Some(message.to_string());
         self.input_buffer.clear();
-        self.draw();
-        let excess = self.cursor_pos;
+        self.draw(rl, thread);
         self.cursor_pos = 0;
 
         loop {
-            self.update();
-            self.draw();
+            if rl.window_should_close() {
+                self.should_exit = true;
+                return String::new();
+            }
+            self.update(rl, thread);
+            self.draw(rl, thread);
 
-            match self.rl.get_key_pressed() {
+            match rl.get_key_pressed() {
                 Some(KeyboardKey::KEY_ENTER) => {
                     let input = take(&mut self.input_buffer);
                     self.active_prompt = None;
@@ -789,8 +811,8 @@ impl<'a> ShellScreen<'a> {
                     }
                 }
                 Some(key) => {
-                    let shift = self.rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
-                        || self.rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
+                    let shift = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+                        || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
 
                     if let Some(c) = key_to_char(key, shift) {
                         self.input_buffer.insert(self.cursor_pos, c);
@@ -800,7 +822,6 @@ impl<'a> ShellScreen<'a> {
                 None => {}
             }
         }
-        // Reset cursor position after input
     }
 
     /// Helper method to get character index at screen position
@@ -822,7 +843,12 @@ impl<'a> ShellScreen<'a> {
     }
 
     // Copy selected text to clipboard
-    fn copy_selected_text(&mut self, start: (usize, usize), end: (usize, usize)) {
+    fn copy_selected_text(
+        &mut self,
+        rl: &mut RaylibHandle,
+        start: (usize, usize),
+        end: (usize, usize),
+    ) {
         let (start, end) = if start <= end {
             (start, end)
         } else {
@@ -853,7 +879,7 @@ impl<'a> ShellScreen<'a> {
         }
 
         if !selected_text.is_empty() {
-            let _ = self.rl.set_clipboard_text(&selected_text);
+            let _ = rl.set_clipboard_text(&selected_text);
         }
     }
 }

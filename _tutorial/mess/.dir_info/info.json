@@ -2,6 +2,9 @@
   "location": "HOME/mess",
   "about": "You are in 'HOME/mess'. Look around and explore!",
   "objects": {
+    "food": {
+      "locked": "00"
+    },
     "friend": {
       "locked": "00"
     },
@@ -9,9 +12,6 @@
       "locked": "00"
     },
     ".opb_pass": {
-      "locked": "00"
-    },
-    "food": {
       "locked": "00"
     }
   }

@@ -1,14 +1,14 @@
 #![allow(unused_variables, unused_mut, dead_code)]
 use deemak::DEBUG_MODE;
+use deemak::gui_main::{run_gui_loop, sekai_initialize};
 use deemak::metainfo::valid_sekai::validate_or_create_sekai;
 use deemak::rns::restore_comp;
 use deemak::utils::globals::set_world_dir;
 use deemak::utils::{debug_mode, find_root, log};
+use deemak::{self, DEBUG_MODE};
 mod login;
 mod server;
 use clap::Parser;
-use deemak::gui_main::{run_gui_loop, sekai_no_hajimari};
-use deemak::{self, DEBUG_MODE};
 use raylib::ffi::{SetConfigFlags, SetTargetFPS};
 use raylib::prelude::get_monitor_width;
 
@@ -16,6 +16,7 @@ use raylib::prelude::get_monitor_width;
 #[command(version, about, long_about = None)]
 struct DeemakArgs {
     /// Path to the Sekai directory to parse.
+    #[arg()]
     sekai_directory: std::path::PathBuf,
 
     /// Enable debug mode for more verbose logging.
@@ -33,10 +34,16 @@ fn main() {
     log::log_info("Application", "Starting DEEMAK Shell");
 
     // get absolute path to the sekai directory
-    let sekai_path = args.sekai_directory.clone();
+    let sekai_path = if args.sekai_directory.is_absolute() {
+        args.sekai_directory.clone()
+    } else {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .join(&args.sekai_directory)
+    };
     log::log_info(
         "SEKAI",
-        &format!("Sekai directory provided: {sekai_path:?}"),
+        &format!("Sekai directory provided: {:?}", sekai_path),
     );
 
     // Set Debug Mode if given
@@ -44,6 +51,35 @@ fn main() {
         DEBUG_MODE.set(true).expect("DEBUG_MODE already set");
         unsafe {
             std::env::set_var("RUST_BACKTRACE", "1");
+        }
+    }
+
+    println!("Sekai directory provided: {}", sekai_path.to_string_lossy());
+    // Check for HOME directory validity and set global SEKAI_DIR accordingly
+    match find_root::check_home(&sekai_path) {
+        Ok(Some(sekai_dir)) => {
+            log::log_info(
+                "SEKAI",
+                &format!("Found root directory for Sekai: {}", sekai_dir.display()),
+            );
+            // Set the global Sekai directory
+            set_world_dir(sekai_dir);
+        }
+        Ok(None) => {
+            log::log_error(
+                "SEKAI",
+                "Failed to find root directory for Sekai. No HOME location found. Exiting.",
+            );
+            eprintln!("Error: Failed to find root directory for Sekai. Exiting.");
+            std::process::exit(1);
+        }
+        Err(e) => {
+            log::log_error(
+                "SEKAI",
+                &format!("Process failed while finding Sekai HOME. Error: {e}. Exiting."),
+            );
+            eprintln!("Process failed while finding Sekai HOME. Error: {e}. Exiting.");
+            std::process::exit(1);
         }
     }
 
@@ -58,7 +94,7 @@ fn main() {
     if args.web {
         // TODO: Remove the extra sekai_no_hajimari call, it will be shifted to the server module
         // later on.
-        sekai_no_hajimari(&sekai_path);
+        sekai_initialize(&sekai_path);
         log::log_info("Application", "Running in web mode");
         // server::launch_web(sekai_dir.clone().unwrap());
         let _ = deemak::server::server();
@@ -98,5 +134,5 @@ fn main() {
     }
 
     // Run the GUI loop
-    run_gui_loop(&mut rl, &thread, font_size, &sekai_path);
+    run_gui_loop(&mut rl, &thread, font_size);
 }

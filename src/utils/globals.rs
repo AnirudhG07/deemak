@@ -114,7 +114,7 @@ pub fn init_user_info(username: String, salt: String, password_hash: String) {
 }
 
 // Specialized getter/setter for WORLD_DIR
-pub fn get_world_dir() -> PathBuf {
+pub fn get_sekai_dir() -> PathBuf {
     let world_dir = SEKAI_DIR.get();
 
     // Return original path if WORLD_DIR is empty
@@ -129,7 +129,9 @@ pub fn get_world_dir() -> PathBuf {
 
 /// Set the WORLD_DIR global variable.
 pub fn set_world_dir(path: PathBuf) {
-    SEKAI_DIR
-        .set(path.to_string_lossy().to_string())
-        .expect("WORLD_DIR already set");
+    if SEKAI_DIR.get().is_none() {
+        SEKAI_DIR
+            .set(path.to_string_lossy().to_string())
+            .expect("Failed to set WORLD_DIR");
+    }
 }
