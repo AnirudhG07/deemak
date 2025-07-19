@@ -1,4 +1,6 @@
 use crate::keys::key_to_char;
+use crate::utils::auth::load_users;
+use crate::utils::auth::verify_password;
 use crate::utils::globals::{UserInfo, set_user_info};
 use raylib::ffi::{DrawTextEx, LoadFontEx, MeasureTextEx, SetExitKey, Vector2};
 use raylib::prelude::*;
