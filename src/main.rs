@@ -38,7 +38,7 @@ fn main() {
     };
     log::log_info(
         "SEKAI",
-        &format!("Sekai directory provided: {:?}", sekai_path),
+        &format!("Sekai directory provided: {sekai_path:?}"),
     );
 
     // Set Debug Mode if given
