@@ -1,14 +1,9 @@
 #![allow(unused_variables, unused_mut, dead_code)]
-use deemak::DEBUG_MODE;
-use deemak::gui_main::{run_gui_loop, sekai_initialize};
-use deemak::metainfo::valid_sekai::validate_or_create_sekai;
-use deemak::rns::restore_comp;
-use deemak::utils::globals::set_world_dir;
-use deemak::utils::{debug_mode, find_root, log};
-use deemak::{self, DEBUG_MODE};
-mod login;
-mod server;
+use crate::gui_main::{run_gui_loop, sekai_initialize};
+use crate::utils::globals::set_world_dir;
+use crate::utils::{debug_mode, find_root, log};
 use clap::Parser;
+use deemak::*;
 use raylib::ffi::{SetConfigFlags, SetTargetFPS};
 use raylib::prelude::get_monitor_width;
 

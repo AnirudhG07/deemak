@@ -10,7 +10,7 @@ pub static SHELL_HISTORY: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec
 pub static USER_INFO: OnceCell<UserInfo> = OnceCell::new();
 
 /// User information structure with expandable functionality
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserInfo {
     pub username: String,
     pub salt: String,
@@ -26,17 +26,6 @@ impl UserInfo {
             username,
             salt,
             password_hash,
-            is_authenticated: false,
-            login_time: None,
-        }
-    }
-
-    /// Create a default UserInfo instance
-    pub fn default() -> Self {
-        Self {
-            username: String::new(),
-            salt: String::new(),
-            password_hash: String::new(),
             is_authenticated: false,
             login_time: None,
         }
