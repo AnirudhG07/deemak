@@ -1,7 +1,7 @@
-use crate::keys::key_to_char;
-use crate::utils::auth::load_users;
-use crate::utils::auth::verify_password;
-use crate::utils::globals::{UserInfo, set_user_info};
+use deemak::keys::key_to_char;
+use deemak::utils::auth::load_users;
+use deemak::utils::auth::verify_password;
+use deemak::utils::globals::{USER_NAME, USER_PASSWORD};
 use raylib::ffi::{DrawTextEx, LoadFontEx, MeasureTextEx, SetExitKey, Vector2};
 use raylib::prelude::*;
 use std::ffi::CString;
