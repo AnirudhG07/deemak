@@ -1,4 +1,4 @@
-use crate::gui_shell::{FIRST_RUN, ShellScreen};
+use crate::gui_shell::ShellScreen;
 use crate::menu::{self, menu_options::MenuOption};
 use crate::metainfo::valid_sekai::validate_or_create_sekai;
 use crate::rns::restore_comp;
@@ -107,14 +107,13 @@ Continuing..."
 #[derive(Debug, Clone, Default)]
 struct InitBools {
     tutorial_initialized: bool,
-    tutorial_first_run: bool,
     sekai_initialized: bool,
-    sekai_first_run: bool,
 }
 
 /// Runs the main GUI loop for the Sekai shell
 pub fn run_gui_loop(rl: &mut RaylibHandle, thread: &RaylibThread, font_size: f32) {
     let mut init_state = InitBools::default();
+    // This will exist, since sekai directory is set in main.rs
     let sekai_path = &get_sekai_dir();
     let mut sekai_shell = ShellScreen::new_sekai(rl, thread, sekai_path.to_path_buf(), font_size);
 
@@ -133,7 +132,6 @@ pub fn run_gui_loop(rl: &mut RaylibHandle, thread: &RaylibThread, font_size: f32
                     "Deemak",
                     format!("Starting Shell: Sekai: {}", sekai_path.display()).as_str(),
                 );
-                unsafe { FIRST_RUN = false }; // Reset first run flag
                 if !init_state.sekai_initialized {
                     sekai_initialize(sekai_path);
                     init_state.sekai_initialized = true;
@@ -149,7 +147,6 @@ pub fn run_gui_loop(rl: &mut RaylibHandle, thread: &RaylibThread, font_size: f32
             Some(MenuOption::Tutorial) => {
                 // Tutorial screen
                 log::log_info("Deemak", "Loading Tutorial");
-                unsafe { FIRST_RUN = true }; // Reset first run flag
                 if !init_state.tutorial_initialized {
                     sekai_initialize(sekai_path);
                     tutorial_shell =
