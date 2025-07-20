@@ -1,5 +1,6 @@
 #![allow(unused_variables, unused_mut, dead_code)]
 use crate::gui_main::{run_gui_loop, sekai_initialize};
+use crate::rns::create_dmk_sekai;
 use crate::utils::globals::set_world_dir;
 use crate::utils::{debug_mode, find_root, log};
 use clap::Parser;
@@ -10,9 +11,9 @@ use raylib::prelude::get_monitor_width;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct DeemakArgs {
-    /// Path to the Sekai directory to parse.
+    /// Path to the Deemak Encrypted Sekai(World) file(or directory if `create_deemak`).
     #[arg()]
-    sekai_directory: std::path::PathBuf,
+    sekai: std::path::PathBuf,
 
     /// Enable debug mode for more verbose logging.
     #[arg(long, default_value_t = false)]
@@ -21,26 +22,18 @@ struct DeemakArgs {
     /// Run the application in web mode (requires a web server).
     #[arg(long, default_value_t = false)]
     web: bool,
+
+    /// Create new Deemak Encrypted file from your existing Sekai directory.
+    #[arg(long, short, default_value_t = false)]
+    create_deemak: bool,
+
+    /// Restore Sekai from a Deemak Encrypted file.
+    #[arg(long, short, default_value_t = false)]
+    restore_sekai: bool,
 }
 
 fn main() {
     let args = DeemakArgs::parse();
-
-    log::log_info("Application", "Starting DEEMAK Shell");
-
-    // get absolute path to the sekai directory
-    let sekai_path = if args.sekai_directory.is_absolute() {
-        args.sekai_directory.clone()
-    } else {
-        std::env::current_dir()
-            .expect("Failed to get current directory")
-            .join(&args.sekai_directory)
-    };
-    log::log_info(
-        "SEKAI",
-        &format!("Sekai directory provided: {sekai_path:?}"),
-    );
-
     // Set Debug Mode if given
     if args.debug {
         DEBUG_MODE.set(true).expect("DEBUG_MODE already set");
@@ -49,7 +42,61 @@ fn main() {
         }
     }
 
-    println!("Sekai directory provided: {}", sekai_path.to_string_lossy());
+    log::log_info("Application", "Starting DEEMAK Shell");
+
+    // get absolute path to the sekai directory
+    let sekai_path = if args.sekai.is_absolute() {
+        args.sekai.clone()
+    } else {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .join(&args.sekai)
+    };
+
+    if !sekai_path.exists() {
+        log::log_error(
+            "SEKAI",
+            &format!("Sekai directory does not exist: {}", sekai_path.display()),
+        );
+        eprintln!(
+            "Error: Sekai directory does not exist: {}",
+            sekai_path.display()
+        );
+        std::process::exit(1);
+    }
+    log::log_info(
+        "SEKAI",
+        &format!("Sekai directory provided: {sekai_path:?}"),
+    );
+
+    if args.create_deemak {
+        log::log_info("Application", "Creating Deemak Encrypted Sekai file");
+        // Get input password
+        println!(
+            "Enter password for your Sekai' Deemak encryption. Note that you can only run deemak on the file made:"
+        );
+        let password = dialoguer::Password::new()
+            .with_prompt("Password")
+            .interact()
+            .expect("Failed to read password");
+        if let Err(e) = create_dmk_sekai::deemak_encrypt_sekai(&sekai_path, password.as_str()) {
+            log::log_error("SEKAI", &format!("Failed to create Deemak file: {e}"));
+            eprintln!("Error: Failed to create Deemak file: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if args.restore_sekai {
+        log::log_info("Application", "Restoring Sekai from Deemak Encrypted file");
+        if let Err(e) = create_dmk_sekai::original_from_encrypted_sekai(&sekai_path) {
+            log::log_error("SEKAI", &format!("Failed to restore Sekai: {e}"));
+            eprintln!("Error: Failed to restore Sekai: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
     // Check for HOME directory validity and set global SEKAI_DIR accordingly
     match find_root::check_home(&sekai_path) {
         Ok(Some(sekai_dir)) => {
