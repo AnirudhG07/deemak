@@ -45,7 +45,7 @@ pub fn sekai_initialize(sekai_path: &Path) {
             "SEKAI",
             &format!(
                 "Creating restore file for Sekai at {:?}",
-                sekai_path.join(".dir_info/restore_me")
+                sekai_path.join(".dir_info/restore_me.deemak")
             ),
         );
         // restore_me should be made initially if it doesnt exist, else it will not be created
@@ -68,7 +68,7 @@ Continuing..."
             "SEKAI",
             &format!(
                 "Creating save file for Sekai at {:?}",
-                sekai_path.join(".dir_info/save_me")
+                sekai_path.join(".dir_info/save_me.deemak")
             ),
         );
         match restore_comp::backup_sekai("save", &root_dir) {
@@ -148,7 +148,7 @@ pub fn run_gui_loop(rl: &mut RaylibHandle, thread: &RaylibThread, font_size: f32
                 // Tutorial screen
                 log::log_info("Deemak", "Loading Tutorial");
                 if !init_state.tutorial_initialized {
-                    sekai_initialize(sekai_path);
+                    sekai_initialize(tutorial_dir);
                     tutorial_shell =
                         ShellScreen::new_sekai(rl, thread, tutorial_dir.to_path_buf(), font_size);
                     init_state.tutorial_initialized = true;
