@@ -51,10 +51,12 @@ pub fn sekai_initialize(sekai_path: &Path) {
         // restore_me should be made initially if it doesnt exist, else it will not be created
         match restore_comp::backup_sekai("restore", &root_dir) {
             Err(e) => {
-                log::log_error("SEKAI", &format!("Failed to create restore file: {e}"));
+                log::log_error(
+                    "SEKAI",
+                    &format!("Failed to create restore file for: {root_dir:?} Error: {e}"),
+                );
                 eprintln!(
-                    "Error: Failed to create restore file: {e}
-Continuing..."
+                    "Error: Failed to create restore file for: {root_dir:?} Error: {e}.\nContinuing..."
                 );
                 return;
             }
@@ -71,12 +73,15 @@ Continuing..."
                 sekai_path.join(".dir_info/save_me.deemak")
             ),
         );
+        // Not copying the restore file to save file, since the password will be different.
         match restore_comp::backup_sekai("save", &root_dir) {
             Err(e) => {
-                log::log_error("SEKAI", &format!("Failed to create save file: {e}"));
+                log::log_error(
+                    "SEKAI",
+                    &format!("Failed to create save file for: {root_dir:?} Error: {e}"),
+                );
                 eprintln!(
-                    "Error: Failed to create save file: {e}
-Continuing..."
+                    "Error: Failed to create save file for: {root_dir:?} Error: {e}.\nContinuing..."
                 );
                 return;
             }
@@ -94,7 +99,7 @@ Continuing..."
                 &format!("Failed to restore Sekai from save file: {err}"),
             );
             eprintln!(
-                "Error: Failed to restore Sekai from save file at {sekai_path:?}
+                "Error: Failed to restore Sekai from save file at {sekai_path:?}. Error: {err}
 Continuing..."
             );
         }

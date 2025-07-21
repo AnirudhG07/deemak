@@ -39,6 +39,10 @@ enum DeemakEncrypt {
         /// Output directory (defaults to current directory)
         #[arg(short, long)]
         output: Option<std::path::PathBuf>,
+
+        /// Force overwrite existing Deemak file(if it exists)
+        #[arg(short, long, default_value_t = false)]
+        force: bool,
     },
 
     /// Restore Sekai from a Deemak Encrypted file
@@ -92,6 +96,7 @@ fn main() {
             DeemakEncrypt::Create {
                 password: _,
                 output,
+                force,
             } => {
                 // Get input password securely
                 let password = match dialoguer::Password::new()
@@ -113,7 +118,12 @@ fn main() {
                 });
 
                 // Handle encryption
-                match create_dmk_sekai::deemak_encrypt_sekai(&sekai_path, &output_path, &password) {
+                match create_dmk_sekai::deemak_encrypt_sekai(
+                    &sekai_path,
+                    &output_path,
+                    &password,
+                    force,
+                ) {
                     Ok(_) => {
                         log::log_info(
                             "SEKAI",
