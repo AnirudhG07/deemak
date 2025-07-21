@@ -22,7 +22,6 @@ pub fn sekai_initialize(sekai_path: &Path) {
         );
     }
     // Just check first for HOME directory validity and create if not.
-    let root_dir = get_sekai_dir();
     // If not valid, create .dir_info for each of them.
     if !validate_or_create_sekai(sekai_path, false) {
         log::log_error(
@@ -49,14 +48,14 @@ pub fn sekai_initialize(sekai_path: &Path) {
             ),
         );
         // restore_me should be made initially if it doesnt exist, else it will not be created
-        match restore_comp::backup_sekai("restore", &root_dir) {
+        match restore_comp::backup_sekai("restore", sekai_path) {
             Err(e) => {
                 log::log_error(
                     "SEKAI",
-                    &format!("Failed to create restore file for: {root_dir:?} Error: {e}"),
+                    &format!("Failed to create restore file for: {sekai_path:?} Error: {e}"),
                 );
                 eprintln!(
-                    "Error: Failed to create restore file for: {root_dir:?} Error: {e}.\nContinuing..."
+                    "Error: Failed to create restore file for: {sekai_path:?} Error: {e}.\nContinuing..."
                 );
                 return;
             }
@@ -74,14 +73,14 @@ pub fn sekai_initialize(sekai_path: &Path) {
             ),
         );
         // Not copying the restore file to save file, since the password will be different.
-        match restore_comp::backup_sekai("save", &root_dir) {
+        match restore_comp::backup_sekai("save", sekai_path) {
             Err(e) => {
                 log::log_error(
                     "SEKAI",
-                    &format!("Failed to create save file for: {root_dir:?} Error: {e}"),
+                    &format!("Failed to create save file for: {sekai_path:?} Error: {e}"),
                 );
                 eprintln!(
-                    "Error: Failed to create save file for: {root_dir:?} Error: {e}.\nContinuing..."
+                    "Error: Failed to create save file for: {sekai_path:?} Error: {e}.\nContinuing..."
                 );
                 return;
             }
