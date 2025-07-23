@@ -1,81 +1,27 @@
 {
   "location": "HOME",
-  "about": "Home Sweet Home",
+  "about": "You are a UG 2nd yr student at IISc, Bengaluru. Read the README file and get to know what fate beholds you today!",
   "objects": {
-    "room_6": {
-      "locked": "11",
-      "decrypt_me": "beuxnahmsouji0dah  h0ap",
-      "compare_me": "blwx yd cydcus dcg9sds83647",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK"
+    "library": {
+      "locked": "00"
     },
-    "room_7": {
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "locked": "11",
-      "compare_me": "blwwnecberytc846536375ah",
-      "decrypt_me": "blwe8ey73ah"
+    "mess": {
+      "locked": "00"
     },
     "README": {
       "locked": "00"
     },
-    "room_1": {
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "compare_me": "bdn345c4cb6n7c93045047873074vn379wah",
-      "decrypt_me": "blehwhr4569hw28jah",
+    "opb": {
+      "compare_me": "1234567890abcdef",
+      "obj_salt": "1234567890abcdef",
+      "decrypt_me": "blah",
       "locked": "11"
     },
-    "room_9": {
-      "compare_me": "blwwnryvewne0pwah",
-      "decrypt_me": "blewueryvm9sod0sdkah",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "locked": "11"
-    },
-    "dog.txt": {
+    "main_building": {
       "locked": "01",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "compare_me": "rhcenhruhce845c64684wah",
-      "decrypt_me": "blah"
-    },
-    "room_4": {
-      "decrypt_me": "blwq0j,9qiyne6rerg7eah",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "compare_me": "523468946",
-      "locked": "11"
-    },
-    "room_5": {
-      "locked": "11",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "compare_me": "blwwnewne0pwah",
-      "decrypt_me": "bleyrcmwje[oxwah"
-    },
-    "room_2": {
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "locked": "11",
-      "decrypt_me": "blahdiedmhf0wh",
-      "compare_me": "blwwnewne0pwah"
-    },
-    "room_8": {
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "decrypt_me": "blajdhgrtywerjgkidhdhh",
-      "locked": "11",
-      "compare_me": "blwwcdcnewndf de0pwah"
-    },
-    "cat.txt": {
-      "locked": "00"
-    },
-    "room_10": {
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK",
-      "locked": "11",
-      "compare_me": "blhmc8htn8rvthurah",
-      "decrypt_me": "bwehqwe,ilah"
-    },
-    "some1": {
-      "locked": "00"
-    },
-    "room_3": {
-      "compare_me": "blwwnryvrewnhwusw8sue0pwah",
-      "locked": "11",
-      "decrypt_me": "bldwryvrdhwuch dudhwd8wuah",
-      "obj_salt": "aGVsbG8td29ybGQtdGhpcy1pcy1hLXNhbHQK"
+      "compare_me": "abcdef1234567890",
+      "obj_salt": "abcdef1234567890"
     }
   }
 }
+
