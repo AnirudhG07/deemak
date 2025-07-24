@@ -2,7 +2,10 @@
   "location": "HOME/opb/labs",
   "about": "You are in 'HOME/opb/labs'. Look around and explore!",
   "objects": {
-    "chem_lab": {
+    "vicharaka": {
+      "locked": "00"
+    },
+    "bio_lab": {
       "locked": "00"
     },
     "materials_lab": {
@@ -11,13 +14,10 @@
     ".databased": {
       "locked": "00"
     },
-    "bio_lab": {
-      "locked": "00"
-    },
     "phy_lab": {
       "locked": "00"
     },
-    "vicharaka": {
+    "chem_lab": {
       "locked": "00"
     }
   }

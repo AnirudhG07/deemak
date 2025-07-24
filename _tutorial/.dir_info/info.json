@@ -1,0 +1,21 @@
+{
+  "location": "HOME",
+  "about": "Welcome to Deemak Tutorial! This is friendly tutorial to get you familiar with all the commands and functionalities of Deemak.\nTo begin, please read the README file. To do this, input `read README` and Enter!",
+  "objects": {
+    "whoareyou": {
+      "locked": "00"
+    },
+    "moving_around": {
+      "locked": "00"
+    },
+    "keys_mouse": {
+      "locked": "00"
+    },
+    "README": {
+      "locked": "00"
+    },
+    "classroom": {
+      "locked": "00"
+    }
+  }
+}
