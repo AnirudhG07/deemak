@@ -168,7 +168,7 @@ pub fn run_gui_loop(rl: &mut RaylibHandle, thread: &RaylibThread, font_size: f32
             }
             Some(MenuOption::Exit) | None => {
                 // Exit
-                std::process::exit(0); // Exit the application
+                crate::utils::cleanup::exit_deemak(0);
             }
         }
     }

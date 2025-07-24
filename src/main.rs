@@ -2,7 +2,7 @@
 use crate::gui_main::{run_gui_loop, sekai_initialize};
 use crate::rns::create_dmk_sekai;
 use crate::utils::globals::set_world_dir;
-use crate::utils::{debug_mode, find_root, log};
+use crate::utils::{cleanup::exit_deemak, debug_mode, find_root, log};
 use clap::{Parser, Subcommand};
 use deemak::metainfo::valid_sekai::validate_or_create_sekai;
 use deemak::*;
@@ -83,7 +83,7 @@ fn input_password(confirm: bool) -> String {
         Err(e) => {
             log::log_error("SEKAI", &format!("Password input failed: {e}"));
             eprintln!("Error: Password input failed: {e}");
-            std::process::exit(1);
+            exit_deemak(1);
         }
     }
 }
@@ -118,7 +118,7 @@ fn main() {
             "Error: Sekai directory does not exist: {}",
             sekai_path.display()
         );
-        std::process::exit(1);
+        exit_deemak(1);
     }
     log::log_info(
         "SEKAI",
@@ -182,7 +182,7 @@ fn main() {
                         Err(e) => {
                             log::log_error("SEKAI", &e.to_string());
                             eprintln!("Error: {e}");
-                            std::process::exit(1);
+                            exit_deemak(1);
                         }
                     }
                     return;
@@ -225,7 +225,7 @@ fn main() {
                         Err(e) => {
                             log::log_error("SEKAI", &format!("Restoration failed: {e}"));
                             eprintln!("Error: Restoration failed: {e}");
-                            std::process::exit(1);
+                            exit_deemak(1);
                         }
                     }
                     return;
@@ -262,7 +262,7 @@ fn main() {
                 &format!("Process failed while finding Sekai HOME. Error: {e}. Exiting."),
             );
             eprintln!("Process failed while finding Sekai HOME. Error: {e}. Exiting.");
-            std::process::exit(1);
+            exit_deemak(1);
         }
     }
 
