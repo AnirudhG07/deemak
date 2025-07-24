@@ -1,8 +1,7 @@
 #![allow(unused_variables, unused_mut, dead_code)]
 use crate::gui_main::{run_gui_loop, sekai_initialize};
-use crate::rns::create_dmk_sekai;
-use crate::utils::globals::set_world_dir;
 use crate::utils::{cleanup::exit_deemak, debug_mode, find_root, log};
+use crate::{rns::create_dmk_sekai, utils::globals::set_world_dir};
 use clap::{Parser, Subcommand};
 use deemak::metainfo::valid_sekai::validate_or_create_sekai;
 use deemak::*;
