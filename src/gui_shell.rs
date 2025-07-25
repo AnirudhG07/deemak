@@ -35,6 +35,10 @@ impl<'a> UserPrompter for ShellPrompter<'a> {
     fn input(&mut self, message: &str) -> String {
         self.shell.prompt_input_text(self.rl, self.thread, message)
     }
+    fn write(&mut self, message: &str) -> String {
+        self.shell.print(message);
+        message.to_string()
+    }
 }
 
 pub struct ShellScreen {
@@ -822,6 +826,14 @@ impl ShellScreen {
                 }
                 None => {}
             }
+        }
+    }
+
+    /// Print text to the output lines
+    pub fn print(&mut self, text: &str) {
+        // Split text into lines and add to output_lines
+        for line in text.lines() {
+            self.output_lines.push(line.to_string());
         }
     }
 
