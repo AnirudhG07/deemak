@@ -1,9 +1,13 @@
 #![allow(unused_variables, unused_mut, dead_code)]
 use crate::gui_main::{run_gui_loop, sekai_initialize};
+use crate::gui_shell::DEEMAK_BANNER;
 use crate::utils::{cleanup::exit_deemak, debug_mode, find_root, log};
 use crate::{rns::create_dmk_sekai, utils::globals::set_world_dir};
 use clap::{Parser, Subcommand};
 use deemak::metainfo::valid_sekai::validate_or_create_sekai;
+use deemak::rns::create_dmk_sekai::original_from_encrypted_sekai;
+use deemak::rns::passlock;
+use deemak::rns::restore_comp::generate_temp_path;
 use deemak::*;
 use raylib::ffi::{SetConfigFlags, SetTargetFPS};
 use raylib::prelude::get_monitor_width;
@@ -88,6 +92,7 @@ fn input_password(confirm: bool) -> String {
 }
 
 fn main() {
+    println!("{DEEMAK_BANNER}");
     let args = DeemakArgs::parse();
     // Set Debug Mode if given
     if args.debug {
@@ -99,7 +104,7 @@ fn main() {
 
     log::log_info("Application", "Starting DEEMAK Shell");
 
-    // get absolute path to the sekai directory
+    // get absolute path to the sekai path
     let sekai_path = if args.sekai.is_absolute() {
         args.sekai.clone()
     } else {
@@ -111,18 +116,32 @@ fn main() {
     if !sekai_path.exists() {
         log::log_error(
             "SEKAI",
-            &format!("Sekai directory does not exist: {}", sekai_path.display()),
+            &format!("Sekai path provided does not exist: {sekai_path:?}",),
         );
-        eprintln!(
-            "Error: Sekai directory does not exist: {}",
-            sekai_path.display()
-        );
+        eprintln!("Error: Sekai path does not exist: {sekai_path:?}",);
         exit_deemak(1);
     }
-    log::log_info(
-        "SEKAI",
-        &format!("Sekai directory provided: {sekai_path:?}"),
-    );
+    log::log_info("SEKAI", &format!("Sekai path provided: {sekai_path:?}"));
+
+    if sekai_path.is_file() && sekai_path.extension().is_some_and(|ext| ext == "deemak") {
+        // Ensure valid magic
+        let mgc_res = passlock::check_dmk_magic(&sekai_path);
+        if let Err(e) = mgc_res {
+            log::log_error(
+                "SEKAI",
+                &format!("Failed to check magic header for Sekai file: {sekai_path:?}. Error: {e}",),
+            );
+            eprintln!(
+                "Error: Failed to check magic header for Sekai file: {sekai_path:?}. Error: {e}",
+            );
+            exit_deemak(1);
+        } else {
+            log::log_info(
+                "SEKAI",
+                &format!("Magic header check passed for Sekai file: {sekai_path:?}"),
+            );
+        }
+    }
 
     if let Some(_cmd) = args.command {
         match _cmd {
@@ -136,6 +155,7 @@ fn main() {
                     // Get input password securely
                     let mut pass_key: String;
                     if password.is_none() {
+                        println!("Please enter a password for the Deemak Encrypted Sekai file:");
                         pass_key = input_password(true);
                     } else {
                         pass_key = password.unwrap();
@@ -232,6 +252,22 @@ fn main() {
             },
         }
     }
+
+    if sekai_path.is_dir() {
+        eprintln!(
+            "Provided Sekai path is a directory, not a file. Deemak takes only a valid input `.deemak` file. If you want to create a Deemak file, use the `dev create` command.\nExiting."
+        );
+    }
+
+    // Deemak working should go inside a temporary directory.
+    let _tmp_sekai_wd = generate_temp_path("sekai_wd");
+    let sekai_path = original_from_encrypted_sekai(&sekai_path, &_tmp_sekai_wd, None)
+        .map_err(|e| {
+            log::log_error("SEKAI", &format!("Failed to restore Sekai: {e}"));
+            eprintln!("Error: Failed to restore Sekai: {e}");
+            exit_deemak(1);
+        })
+        .unwrap();
 
     // Check for HOME directory validity and set global SEKAI_DIR accordingly
     match find_root::check_home(&sekai_path) {
